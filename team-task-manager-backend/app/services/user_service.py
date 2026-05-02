@@ -29,8 +29,20 @@ class UserService:
         # Hash password
         hashed_password = hash_password(user_create.password)
 
-        # Role is already validated by Pydantic schema; defaults to MEMBER if not provided
-        role = user_create.role if user_create.role else UserRole.MEMBER
+        # Handle role: Pydantic should convert string to enum, but handle defensively
+        role = UserRole.MEMBER  # default
+        print(f"DEBUG: user_create.role = {user_create.role}, type = {type(user_create.role)}")
+        if user_create.role:
+            if isinstance(user_create.role, UserRole):
+                # Already an enum from Pydantic
+                role = user_create.role
+            else:
+                # String fallback - convert to enum
+                try:
+                    role = UserRole(user_create.role.lower() if isinstance(user_create.role, str) else user_create.role)
+                except (ValueError, KeyError, AttributeError):
+                    role = UserRole.MEMBER
+        print(f"DEBUG: Final role assigned = {role}, value = {role.value}")
 
         # Create user
         db_user = User(

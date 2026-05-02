@@ -50,6 +50,13 @@ export function SignupPage() {
 
     setIsLoading(true);
 
+    // Debug: log the data being sent
+    console.log('Signup data:', {
+      email: formData.email,
+      fullName: formData.fullName,
+      role: formData.role.toLowerCase()
+    });
+
     // Pass role to backend
     const success = await signup(
       formData.email,
@@ -71,25 +78,25 @@ export function SignupPage() {
   if (loading) return <LoadingSkeleton />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
+        {/* Logo Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg mb-4">
-            <span className="text-white font-bold text-xl">T</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl mb-4 shadow-lg">
+            <span className="text-white font-bold text-2xl">T</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            TaskFlow
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100">
+            Create Account
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Create your account to get started
+          <p className="text-slate-600 dark:text-slate-400 mt-2 font-medium">
+            Join Team Task Manager today
           </p>
         </div>
 
-        {/* Form */}
-        <div className="card p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form Card */}
+        <div className="card p-8 shadow-xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
 
             {/* Full Name */}
             <div>
@@ -107,7 +114,7 @@ export function SignupPage() {
 
             {/* Email */}
             <div>
-              <label className="label">Email</label>
+              <label className="label">Email Address</label>
               <input
                 type="email"
                 name="email"
@@ -121,18 +128,18 @@ export function SignupPage() {
 
             {/* Role */}
             <div>
-              <label className="label">Role</label>
+              <label className="label">Account Role</label>
               <select
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
                 className="input"
               >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
+                <option value="member">👤 Member - Regular user access</option>
+                <option value="admin">👑 Admin - Full access</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Select Admin for elevated permissions
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                Select Admin for elevated permissions in projects
               </p>
             </div>
 
@@ -149,8 +156,8 @@ export function SignupPage() {
                 required
                 autoComplete="new-password"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Minimum 8 characters
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                Minimum 8 characters required
               </p>
             </div>
 
@@ -168,30 +175,42 @@ export function SignupPage() {
               />
             </div>
 
-            {/* Submit */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary w-full"
+              className="btn-primary w-full mt-2"
             >
-              {isLoading ? 'Creating account...' : 'Create Account'}
+              {isLoading ? '🔄 Creating account...' : '✨ Create Account'}
             </button>
 
           </form>
 
-          {/* Login Link */}
-          <div className="mt-6">
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
-              <button
-                onClick={() => navigate('/login')}
-                className="text-primary-600 font-semibold hover:underline"
-              >
-                Sign In
-              </button>
-            </p>
+          {/* Divider */}
+          <div className="my-6 relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                Already have an account?
+              </span>
+            </div>
           </div>
+
+          {/* Login Link */}
+          <button
+            onClick={() => navigate('/login')}
+            className="btn-secondary w-full"
+          >
+            Sign In Instead
+          </button>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-slate-600 dark:text-slate-400 mt-6">
+          By signing up, you agree to our Terms of Service and Privacy Policy
+        </p>
       </div>
     </div>
   );

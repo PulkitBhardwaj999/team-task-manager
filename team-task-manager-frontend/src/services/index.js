@@ -2,13 +2,16 @@ import axiosInstance from './api';
 
 // Auth services
 export const authService = {
-  signup: (email, fullName, password, role = 'member') =>
-    axiosInstance.post('/auth/signup', {
+  signup: (email, fullName, password, role = 'member') => {
+    const payload = {
       email,
       full_name: fullName,
       password,
       role
-    }),
+    };
+    console.log('🔐 Signup API payload:', payload);
+    return axiosInstance.post('/auth/signup', payload);
+  },
   
   login: (email, password) =>
     axiosInstance.post('/auth/login', { email, password }),
