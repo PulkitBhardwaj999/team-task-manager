@@ -9,9 +9,11 @@ Perfect for product demonstrations, tutorials, and training.
 ## Pre-Demo Setup (2 minutes)
 
 ### Prerequisites:
-- Both frontend and backend running locally
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000
+- Both frontend and backend running locally (or use deployed URLs below)
+- Frontend (local): http://localhost:5173
+- Frontend (deployed): https://team-task-manager-eta-neon.vercel.app
+- Backend (local): http://localhost:8000
+- Backend (deployed): https://team-task-manager-mygg.onrender.com
 - Demo account ready (admin@example.com / password123)
 
 ### Talking Points to Prepare:

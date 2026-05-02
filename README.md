@@ -8,9 +8,9 @@ Assignment submission requires all three links below. Replace these values after
 
 | Item | URL |
 | --- | --- |
-| Live Frontend | `PASTE_RAILWAY_OR_VERCEL_FRONTEND_URL_HERE` |
-| Live Backend API | `PASTE_RAILWAY_BACKEND_URL_HERE/api/v1` |
-| API Docs | `PASTE_RAILWAY_BACKEND_URL_HERE/docs` |
+| Live Frontend | `https://team-task-manager-eta-neon.vercel.app` |
+| Live Backend API | `https://team-task-manager-mygg.onrender.com/api/v1` |
+| API Docs | `https://team-task-manager-mygg.onrender.com/docs` |
 | Public GitHub Repo | `PASTE_PUBLIC_GITHUB_REPO_URL_HERE` |
 
 Do not submit while these placeholders are still present.

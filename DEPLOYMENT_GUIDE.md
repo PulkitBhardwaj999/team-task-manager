@@ -117,6 +117,13 @@ After deployment:
 2. Visit the health endpoint: `https://app-production-123.up.railway.app/health`
 3. Confirm the deploy logs show `alembic upgrade head` completed successfully
 
+Example (deployed backend for this project):
+
+```
+https://team-task-manager-mygg.onrender.com
+https://team-task-manager-mygg.onrender.com/health
+```
+
 The backend `Procfile` runs migrations automatically before the app starts:
 
 ```text

@@ -38,6 +38,9 @@ uvicorn app.main:app --reload --reload-dir app --reload-dir migrations --reload-
 **Backend running at:** http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
+**Live backend (deployed):** https://team-task-manager-mygg.onrender.com
+- API Docs: https://team-task-manager-mygg.onrender.com/docs
+
 Note: `0.0.0.0` is only the server bind address. In the browser, use `http://localhost:8000` or `http://127.0.0.1:8000`.
 
 ### Frontend (2 minutes)
@@ -57,6 +60,8 @@ npm run dev
 ```
 
 **Frontend running at:** http://localhost:5173
+
+**Live frontend (deployed):** https://team-task-manager-eta-neon.vercel.app
 
 ### Test the App
 
