@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300">
+  <defs>
+    <linearGradient id="h" x1="0" x2="1">
+      <stop offset="0" stop-color="#eef2ff"/>
+      <stop offset="1" stop-color="#e0f2fe"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" fill="url(#h)" />
+  <g fill="#0f172a" opacity="0.08">
+    <circle cx="100" cy="180" r="80" />
+    <circle cx="400" cy="60" r="100" />
+    <circle cx="900" cy="160" r="120" />
+  </g>
+  <text x="60" y="120" font-family="Inter, Arial" font-size="42" fill="#0f172a">Manage tasks with clarity</text>
+</svg>
