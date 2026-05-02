@@ -1,5 +1,5 @@
 """
-SQLAlchemy models for database tables
+SQLAlchemy models for database tables (SAFE VERSION)
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table
@@ -9,9 +9,9 @@ from app.core.database import Base
 import enum
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 # ENUMS
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -30,9 +30,9 @@ class TaskStatus(str, enum.Enum):
     DONE = "done"
 
 
-# ─────────────────────────────────────────────────────────────
-# ASSOCIATION TABLE (FIXED ENUM HERE TOO 🔥)
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# ASSOCIATION TABLE
+# ─────────────────────────────────────────────
 
 project_members = Table(
     "project_members",
@@ -43,7 +43,7 @@ project_members = Table(
         "role",
         ENUM(
             UserRole,
-            values_callable=lambda x: [e.value for e in x],  # ✅ FIXED
+            values_callable=lambda x: [e.value for e in x],
             name="userrole",
             create_type=False,
         ),
@@ -54,9 +54,9 @@ project_members = Table(
 )
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 # USER MODEL
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 
 class User(Base):
     __tablename__ = "users"
@@ -70,7 +70,7 @@ class User(Base):
     role = Column(
         ENUM(
             UserRole,
-            values_callable=lambda x: [e.value for e in x],  # ✅ FIXED
+            values_callable=lambda x: [e.value for e in x],
             name="userrole",
             create_type=False,
         ),
@@ -81,14 +81,14 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
+    # ✅ SAFE: NO cascade in many-to-many
     projects = relationship(
         "Project",
         secondary=project_members,
-        back_populates="members",
-        cascade="all, delete"
+        back_populates="members"
     )
 
+    # ✅ SAFE: one-to-many can have delete-orphan
     created_projects = relationship(
         "Project",
         back_populates="creator",
@@ -103,9 +103,9 @@ class User(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 # PROJECT MODEL
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 
 class Project(Base):
     __tablename__ = "projects"
@@ -125,13 +125,14 @@ class Project(Base):
         foreign_keys=[creator_id]
     )
 
+    # ✅ SAFE: NO cascade here
     members = relationship(
         "User",
         secondary=project_members,
-        back_populates="projects",
-        cascade="all, delete"
+        back_populates="projects"
     )
 
+    # ✅ SAFE: delete project → delete tasks
     tasks = relationship(
         "Task",
         back_populates="project",
@@ -139,9 +140,9 @@ class Project(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 # TASK MODEL
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 
 class Task(Base):
     __tablename__ = "tasks"
