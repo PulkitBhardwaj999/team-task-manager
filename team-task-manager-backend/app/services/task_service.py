@@ -12,11 +12,22 @@ from fastapi import HTTPException, status
 
 
 def _model_priority(priority) -> TaskPriority:
-    return priority if isinstance(priority, TaskPriority) else TaskPriority(priority.value)
+    if isinstance(priority, TaskPriority):
+        return priority
 
+    try:
+        return TaskPriority(str(priority).lower())  # ✅ FIX
+    except ValueError:
+        return TaskPriority.MEDIUM  # fallback
 
 def _model_status(task_status) -> TaskStatus:
-    return task_status if isinstance(task_status, TaskStatus) else TaskStatus(task_status.value)
+    if isinstance(task_status, TaskStatus):
+        return task_status
+
+    try:
+        return TaskStatus(str(task_status).lower())  # ✅ FIX
+    except ValueError:
+        return TaskStatus.TODO
 
 
 class TaskService:
