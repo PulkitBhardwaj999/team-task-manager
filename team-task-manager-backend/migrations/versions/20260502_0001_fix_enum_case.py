@@ -1,27 +1,25 @@
-"""fix enum case - migrate ADMIN/MEMBER to admin/member
+"""fix enum case - lowercase all enum values in PostgreSQL
 
-This migration fixes the case mismatch between the PostgreSQL enum values
-created in the initial migration (UPPERCASE: ADMIN, MEMBER, LOW, MEDIUM, etc.)
-and the SQLAlchemy model enum values (lowercase: admin, member, low, medium, etc.).
+Root cause: the initial migration created PostgreSQL enums with UPPERCASE
+values ('ADMIN', 'MEMBER', 'LOW', 'MEDIUM', 'HIGH', 'TODO', 'IN_PROGRESS',
+'DONE') but the SQLAlchemy models declare them with lowercase values
+('admin', 'member', 'low', 'medium', 'high', 'todo', 'in_progress', 'done').
 
-PostgreSQL enum values ARE case-sensitive.  The initial migration created them
-as 'ADMIN' / 'MEMBER' but the ORM models declare them as 'admin' / 'member',
-so every write silently failed the enum constraint and fell back to the default.
+PostgreSQL ENUM values are case-sensitive. Every write from the ORM was
+sending lowercase strings against an UPPERCASE-only enum, causing:
+  - "invalid input value for enum userrole: 'admin'" (or 'member')
+  - 500 errors + transaction rollbacks
+  - The browser sees no response → reports a fake CORS error
 
-Strategy:
-  1. Create new enums with lowercase values
-  2. ALTER each column to use the new enum (casting via text)
-  3. Drop the old uppercase enums
+Fix: migrate all enum columns to lowercase values without data loss.
 
 Revision ID: 20260502_0001
 Revises: 20260501_0001
 Create Date: 2026-05-02 00:00:00.000000
 """
 from typing import Sequence, Union
-
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ENUM
 
 revision: str = "20260502_0001"
 down_revision: Union[str, None] = "20260501_0001"
@@ -32,76 +30,81 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     conn = op.get_bind()
 
-    # ------------------------------------------------------------------
-    # 1. Create lowercase replacement enums
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Step 1 – create new lowercase enum types                            #
+    # ------------------------------------------------------------------ #
     conn.execute(sa.text(
-        "CREATE TYPE userrole_new AS ENUM ('admin', 'member')"
+        "CREATE TYPE userrole_new      AS ENUM ('admin', 'member')"
     ))
     conn.execute(sa.text(
-        "CREATE TYPE taskpriority_new AS ENUM ('low', 'medium', 'high')"
+        "CREATE TYPE taskpriority_new  AS ENUM ('low', 'medium', 'high')"
     ))
     conn.execute(sa.text(
-        "CREATE TYPE taskstatus_new AS ENUM ('todo', 'in_progress', 'done')"
+        "CREATE TYPE taskstatus_new    AS ENUM ('todo', 'in_progress', 'done')"
     ))
 
-    # ------------------------------------------------------------------
-    # 2. Migrate each column that uses the old uppercase enum
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Step 2 – migrate each column (UPPERCASE → lowercase via lower())    #
+    # ------------------------------------------------------------------ #
 
-    # users.role  (ADMIN -> admin, MEMBER -> member)
+    # users.role
     conn.execute(sa.text("""
         ALTER TABLE users
-            ALTER COLUMN role TYPE userrole_new
+            ALTER COLUMN role
+            TYPE userrole_new
             USING lower(role::text)::userrole_new
     """))
 
     # project_members.role
     conn.execute(sa.text("""
         ALTER TABLE project_members
-            ALTER COLUMN role TYPE userrole_new
+            ALTER COLUMN role
+            TYPE userrole_new
             USING lower(role::text)::userrole_new
     """))
 
-    # tasks.priority  (LOW -> low, MEDIUM -> medium, HIGH -> high)
+    # tasks.priority
     conn.execute(sa.text("""
         ALTER TABLE tasks
-            ALTER COLUMN priority TYPE taskpriority_new
+            ALTER COLUMN priority
+            TYPE taskpriority_new
             USING lower(priority::text)::taskpriority_new
     """))
 
-    # tasks.status  (TODO -> todo, IN_PROGRESS -> in_progress, DONE -> done)
+    # tasks.status  (IN_PROGRESS → in_progress needs the underscore preserved)
+    # lower() on 'IN_PROGRESS' gives 'in_progress' — correct.
     conn.execute(sa.text("""
         ALTER TABLE tasks
-            ALTER COLUMN status TYPE taskstatus_new
+            ALTER COLUMN status
+            TYPE taskstatus_new
             USING lower(status::text)::taskstatus_new
     """))
 
-    # ------------------------------------------------------------------
-    # 3. Drop old uppercase enums and rename new ones into place
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Step 3 – drop old UPPERCASE types and rename new ones into place    #
+    # ------------------------------------------------------------------ #
     conn.execute(sa.text("DROP TYPE userrole"))
-    conn.execute(sa.text("ALTER TYPE userrole_new RENAME TO userrole"))
+    conn.execute(sa.text("ALTER TYPE userrole_new     RENAME TO userrole"))
 
     conn.execute(sa.text("DROP TYPE taskpriority"))
     conn.execute(sa.text("ALTER TYPE taskpriority_new RENAME TO taskpriority"))
 
     conn.execute(sa.text("DROP TYPE taskstatus"))
-    conn.execute(sa.text("ALTER TYPE taskstatus_new RENAME TO taskstatus"))
+    conn.execute(sa.text("ALTER TYPE taskstatus_new   RENAME TO taskstatus"))
 
 
 def downgrade() -> None:
+    """Reverse: lowercase → UPPERCASE (data is uppercased with upper())."""
     conn = op.get_bind()
 
-    # Reverse: create uppercase enums, migrate back, drop lowercase ones
     conn.execute(sa.text(
-        "CREATE TYPE userrole_old AS ENUM ('ADMIN', 'MEMBER')"
+        "CREATE TYPE userrole_old     AS ENUM ('ADMIN', 'MEMBER')"
     ))
     conn.execute(sa.text(
         "CREATE TYPE taskpriority_old AS ENUM ('LOW', 'MEDIUM', 'HIGH')"
     ))
     conn.execute(sa.text(
-        "CREATE TYPE taskstatus_old AS ENUM ('TODO', 'IN_PROGRESS', 'DONE')"
+        "CREATE TYPE taskstatus_old   AS ENUM ('TODO', 'IN_PROGRESS', 'DONE')"
     ))
 
     conn.execute(sa.text("""
@@ -126,10 +129,10 @@ def downgrade() -> None:
     """))
 
     conn.execute(sa.text("DROP TYPE userrole"))
-    conn.execute(sa.text("ALTER TYPE userrole_old RENAME TO userrole"))
+    conn.execute(sa.text("ALTER TYPE userrole_old     RENAME TO userrole"))
 
     conn.execute(sa.text("DROP TYPE taskpriority"))
     conn.execute(sa.text("ALTER TYPE taskpriority_old RENAME TO taskpriority"))
 
     conn.execute(sa.text("DROP TYPE taskstatus"))
-    conn.execute(sa.text("ALTER TYPE taskstatus_old RENAME TO taskstatus"))
+    conn.execute(sa.text("ALTER TYPE taskstatus_old   RENAME TO taskstatus"))

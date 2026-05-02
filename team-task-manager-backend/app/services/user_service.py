@@ -1,97 +1,6 @@
-# """
-# User service - business logic for user operations
-# """
-
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from sqlalchemy import select
-# from fastapi import HTTPException, status
-
-# from app.models.models import User, UserRole
-# from app.schemas.schemas import UserCreate
-# from app.core.security import hash_password, verify_password
-
-
-# class UserService:
-#     """Service for user operations"""
-
-#     @staticmethod
-#     async def create_user(db: AsyncSession, user_create: UserCreate) -> User:
-#         """Create a new user"""
-
-#         # Check if user already exists
-#         existing_user = await UserService.get_user_by_email(db, user_create.email)
-#         if existing_user:
-#             raise HTTPException(
-#                 status_code=status.HTTP_400_BAD_REQUEST,
-#                 detail="Email already registered"
-#             )
-
-#         # Hash password
-#         hashed_password = hash_password(user_create.password)
-
-#         # Handle role: Pydantic should convert string to enum, but handle defensively
-#         role = UserRole.MEMBER  # default
-#         print(f"DEBUG: user_create.role = {user_create.role}, type = {type(user_create.role)}")
-#         if user_create.role:
-#             if isinstance(user_create.role, UserRole):
-#                 # Already an enum from Pydantic
-#                 role = user_create.role
-#             else:
-#                 # String fallback - convert to enum
-#                 try:
-#                     role = UserRole(user_create.role.lower() if isinstance(user_create.role, str) else user_create.role)
-#                 except (ValueError, KeyError, AttributeError):
-#                     role = UserRole.MEMBER
-#         print(f"DEBUG: Final role assigned = {role}, value = {role.value}")
-
-#         # Create user
-#         db_user = User(
-#             email=user_create.email,
-#             full_name=user_create.full_name,
-#             hashed_password=hashed_password,
-#             role=role
-#         )
-
-#         db.add(db_user)
-#         await db.commit()
-#         await db.refresh(db_user)
-
-#         return db_user
-
-#     @staticmethod
-#     async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
-#         """Get user by email"""
-#         query = select(User).where(User.email == email)
-#         result = await db.execute(query)
-#         return result.scalars().first()
-
-#     @staticmethod
-#     async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-#         """Get user by ID"""
-#         query = select(User).where(User.id == user_id)
-#         result = await db.execute(query)
-#         return result.scalars().first()
-
-#     @staticmethod
-#     async def authenticate_user(db: AsyncSession, email: str, password: str) -> User | None:
-#         """Authenticate user"""
-#         user = await UserService.get_user_by_email(db, email)
-#         if not user or not verify_password(password, user.hashed_password):
-#             return None
-#         return user
-
-#     @staticmethod
-#     async def get_all_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[User]:
-#         """Get all users"""
-#         query = select(User).offset(skip).limit(limit)
-#         result = await db.execute(query)
-#         return result.scalars().all()
-
-
 """
 User service - business logic for user operations
 """
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
@@ -108,86 +17,105 @@ class UserService:
     async def create_user(db: AsyncSession, user_create: UserCreate) -> User:
         """Create a new user.
 
-        Role normalization is handled upstream by the Pydantic ``UserCreate``
-        validator, so ``user_create.role`` is always a valid ``UserRole`` enum
-        member by the time it reaches this method.  We still guard against the
-        impossible case where something bypasses Pydantic just to be safe.
+        Role flow
+        ---------
+        1. Frontend sends { role: "admin" } or { role: "member" }
+        2. Pydantic (UserCreate.normalize_role) normalises casing → lowercase str
+        3. Here we convert that string to models.UserRole enum using .value lookup
+        4. We pass the ENUM INSTANCE (not .value, not .name) to the ORM column.
+           SQLAlchemy with asyncpg knows how to serialise it as the correct
+           lowercase string that matches the PostgreSQL enum values.
+
+        NEVER do:
+            role = role.name   ← returns 'ADMIN' / 'MEMBER' (uppercase) → DB crash
+            role = role.value  ← returns plain str, bypasses ORM enum mapping
+        ALWAYS do:
+            role = UserRole("admin")  ← gives the enum instance, ORM handles rest
         """
 
-        # Check if user already exists
-        existing_user = await UserService.get_user_by_email(db, user_create.email)
-        if existing_user:
+        # ── 1. duplicate-email guard ───────────────────────────────────────────
+        existing = await UserService.get_user_by_email(db, user_create.email)
+        if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
 
-        # Hash password
+        # ── 2. resolve role to models.UserRole enum instance ──────────────────
+        #
+        # user_create.role is already normalised to lowercase by Pydantic's
+        # @field_validator("role", mode="before") in schemas.py.
+        # We just need to bridge schemas.UserRole → models.UserRole via value.
+        #
+        incoming_role_str = (
+            user_create.role.value          # schemas.UserRole → "admin" / "member"
+            if user_create.role is not None
+            else "member"
+        )
+
+        try:
+            role: UserRole = UserRole(incoming_role_str)   # models.UserRole instance
+        except ValueError:
+            # Unknown value — safe fallback; log and continue
+            print(f"[UserService] WARNING: unknown role '{incoming_role_str}', "
+                  f"defaulting to MEMBER")
+            role = UserRole.MEMBER
+
+        # ── 3. debug logging (remove / guard with settings.DEBUG in prod) ──────
+        print(f"[UserService.create_user] email={user_create.email!r}")
+        print(f"[UserService.create_user] incoming role string : {incoming_role_str!r}")
+        print(f"[UserService.create_user] resolved model enum  : {role!r}  "
+              f"(value={role.value!r})")
+
+        # ── 4. hash password ───────────────────────────────────────────────────
         hashed_password = hash_password(user_create.password)
 
-        # ---------------------------------------------------------------------------
-        # Role resolution
-        # ---------------------------------------------------------------------------
-        # Pydantic's normalize_role validator already converted the incoming string
-        # to a UserRole enum (schemas.UserRole).  We need to map that to the
-        # SQLAlchemy model's UserRole enum (models.UserRole).  Both share the same
-        # values ("admin" / "member") so a value-based lookup is safe and avoids
-        # any import-aliasing confusion.
-        # ---------------------------------------------------------------------------
-        schema_role = user_create.role  # schemas.UserRole instance (or None)
-
-        if schema_role is None:
-            role = UserRole.MEMBER
-        else:
-            try:
-                # Convert via .value so we bridge schemas.UserRole → models.UserRole
-                role = UserRole(schema_role.value)
-            except (ValueError, AttributeError):
-                role = UserRole.MEMBER
-
-        # Debug logging — remove or guard with settings.DEBUG in production
-        print(f"[UserService.create_user] incoming role from schema: {schema_role!r}")
-        print(f"[UserService.create_user] resolved model role: {role!r} (value={role.value!r})")
-
-        # Create user
+        # ── 5. persist ─────────────────────────────────────────────────────────
+        #
+        # Pass the enum INSTANCE — NOT role.value / role.name.
+        # asyncpg + SQLAlchemy will write the correct lowercase string
+        # ('admin' or 'member') that matches the PostgreSQL enum after
+        # the migration has been applied.
+        #
         db_user = User(
             email=user_create.email,
             full_name=user_create.full_name,
             hashed_password=hashed_password,
-            role=role,
+            role=role,          # ← enum instance, not role.value / role.name
         )
 
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
 
+        print(f"[UserService.create_user] user created: id={db_user.id}  "
+              f"role={db_user.role!r}")
         return db_user
+
+    # ── helpers ────────────────────────────────────────────────────────────────
 
     @staticmethod
     async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
-        """Get user by email"""
-        query = select(User).where(User.email == email)
-        result = await db.execute(query)
+        result = await db.execute(select(User).where(User.email == email))
         return result.scalars().first()
 
     @staticmethod
     async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-        """Get user by ID"""
-        query = select(User).where(User.id == user_id)
-        result = await db.execute(query)
+        result = await db.execute(select(User).where(User.id == user_id))
         return result.scalars().first()
 
     @staticmethod
-    async def authenticate_user(db: AsyncSession, email: str, password: str) -> User | None:
-        """Authenticate user"""
+    async def authenticate_user(
+        db: AsyncSession, email: str, password: str
+    ) -> User | None:
         user = await UserService.get_user_by_email(db, email)
         if not user or not verify_password(password, user.hashed_password):
             return None
         return user
 
     @staticmethod
-    async def get_all_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[User]:
-        """Get all users"""
-        query = select(User).offset(skip).limit(limit)
-        result = await db.execute(query)
+    async def get_all_users(
+        db: AsyncSession, skip: int = 0, limit: int = 100
+    ) -> list[User]:
+        result = await db.execute(select(User).offset(skip).limit(limit))
         return result.scalars().all()

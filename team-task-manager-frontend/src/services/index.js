@@ -1,21 +1,20 @@
 import axiosInstance from './api';
 
-// Auth services
+// ── Auth ───────────────────────────────────────────────────────────────────────
 export const authService = {
   signup: (email, fullName, password, role = 'member') => {
-    // Normalize role on the client side too — belt-and-suspenders.
-    // The backend validator handles bad casing, but this prevents
-    // any accidental capitalization from slipping through.
-    const normalizedRole = (role || 'member').toLowerCase();
-    if (!['admin', 'member'].includes(normalizedRole)) {
-      console.warn(`[authService.signup] Unknown role "${role}", falling back to "member"`);
-    }
+    // Normalise on the client side too — belt-and-suspenders.
+    // The backend validator handles bad casing, but this prevents any
+    // accidental capitalisation from ever reaching the wire.
+    const safeRole = ['admin', 'member'].includes(String(role).toLowerCase())
+      ? String(role).toLowerCase()
+      : 'member';
 
     const payload = {
       email,
-      full_name: fullName,       // snake_case — matches FastAPI / Pydantic UserCreate
+      full_name: fullName,   // ← snake_case — matches FastAPI UserCreate
       password,
-      role: ['admin', 'member'].includes(normalizedRole) ? normalizedRole : 'member',
+      role: safeRole,        // ← always lowercase: "admin" or "member"
     };
 
     console.log('[authService.signup] payload →', payload);
@@ -32,7 +31,7 @@ export const authService = {
     axiosInstance.post('/auth/refresh', { refresh_token: refreshToken }),
 };
 
-// User services
+// ── Users ──────────────────────────────────────────────────────────────────────
 export const userService = {
   getAllUsers: () =>
     axiosInstance.get('/users/'),
@@ -41,7 +40,7 @@ export const userService = {
     axiosInstance.get(`/users/${userId}`),
 };
 
-// Project services
+// ── Projects ───────────────────────────────────────────────────────────────────
 export const projectService = {
   createProject: (name, description) =>
     axiosInstance.post('/projects/', { name, description }),
@@ -59,10 +58,7 @@ export const projectService = {
     axiosInstance.delete(`/projects/${projectId}`),
 
   addProjectMember: (projectId, userId, role = 'member') =>
-    axiosInstance.post(`/projects/${projectId}/members`, {
-      user_id: userId,
-      role,
-    }),
+    axiosInstance.post(`/projects/${projectId}/members`, { user_id: userId, role }),
 
   removeProjectMember: (projectId, memberId) =>
     axiosInstance.delete(`/projects/${projectId}/members/${memberId}`),
@@ -71,7 +67,7 @@ export const projectService = {
     axiosInstance.get(`/projects/${projectId}/progress`),
 };
 
-// Task services
+// ── Tasks ──────────────────────────────────────────────────────────────────────
 export const taskService = {
   createTask: (projectId, title, description, priority, dueDate, assignedTo) => {
     const pid = Number(projectId);
@@ -96,14 +92,20 @@ export const taskService = {
 
   updateTask: (taskId, updates) => {
     const body = { ...updates };
+
+    // Normalise due_date
     if (Object.prototype.hasOwnProperty.call(body, 'due_date')) {
-      body.due_date = body.due_date ? new Date(body.due_date).toISOString() : null;
+      body.due_date = body.due_date
+        ? new Date(body.due_date).toISOString()
+        : null;
     }
-    // normalize assigned_to → assigned_to_id for API
+
+    // Normalise assigned_to → assigned_to_id
     if (Object.prototype.hasOwnProperty.call(body, 'assigned_to')) {
       body.assigned_to_id = body.assigned_to ? Number(body.assigned_to) : null;
       delete body.assigned_to;
     }
+
     return axiosInstance.put(`/tasks/${taskId}`, body);
   },
 
@@ -122,8 +124,7 @@ export const taskService = {
     axiosInstance.get('/tasks/overdue'),
 };
 
-// Dashboard services
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 export const dashboardService = {
-  getStats: () =>
-    axiosInstance.get('/dashboard/stats'),
+  getStats: () => axiosInstance.get('/dashboard/stats'),
 };
