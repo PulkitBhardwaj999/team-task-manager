@@ -11,7 +11,7 @@ Assignment submission requires all three links below. Replace these values after
 | Live Frontend | `https://team-task-manager-eta-neon.vercel.app` |
 | Live Backend API | `https://team-task-manager-mygg.onrender.com/api/v1` |
 | API Docs | `https://team-task-manager-mygg.onrender.com/docs` |
-| Public GitHub Repo | `PASTE_PUBLIC_GITHUB_REPO_URL_HERE` |
+
 
 Do not submit while these placeholders are still present.
 
@@ -35,7 +35,7 @@ Do not submit while these placeholders are still present.
 
 **Frontend:** React 18, Vite, Tailwind CSS, React Router, Axios, Recharts, Lucide React
 
-**Deployment:** Railway for backend and database; Railway or Vercel for frontend
+**Deployment:** Railway for backend and database; Vercel for frontend
 
 ## Architecture
 
