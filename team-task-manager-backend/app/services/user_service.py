@@ -29,14 +29,8 @@ class UserService:
         # Hash password
         hashed_password = hash_password(user_create.password)
 
-        #  ROLE LOGIC
-        role = UserRole.MEMBER
-
-        if user_create.role:
-            try:
-                role = UserRole[user_create.role.upper()]
-            except KeyError:
-                role = UserRole.MEMBER  # fallback
+        # Role is already validated by Pydantic schema; defaults to MEMBER if not provided
+        role = user_create.role if user_create.role else UserRole.MEMBER
 
         # Create user
         db_user = User(

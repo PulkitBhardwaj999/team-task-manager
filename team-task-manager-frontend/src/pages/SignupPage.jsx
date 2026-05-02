@@ -50,12 +50,12 @@ export function SignupPage() {
 
     setIsLoading(true);
 
-    //  pass role to backend
+    // Pass role to backend
     const success = await signup(
       formData.email,
       formData.fullName,
       formData.password,
-      formData.role
+      formData.role.toLowerCase()
     );
 
     setIsLoading(false);
@@ -131,6 +131,9 @@ export function SignupPage() {
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Select Admin for elevated permissions
+              </p>
             </div>
 
             {/* Password */}

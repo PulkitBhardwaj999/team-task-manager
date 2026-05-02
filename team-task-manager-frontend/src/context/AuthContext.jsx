@@ -50,11 +50,11 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const signup = useCallback(async (email, fullName, password) => {
+  const signup = useCallback(async (email, fullName, password, role = 'member') => {
     try {
       setError(null);
       setLoading(true);
-      await authService.signup(email, fullName, password);
+      await authService.signup(email, fullName, password, role);
       await login(email, password);
       return true;
     } catch (err) {
