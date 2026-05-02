@@ -3,22 +3,31 @@ import axiosInstance from './api';
 // Auth services
 export const authService = {
   signup: (email, fullName, password, role = 'member') => {
+    // Normalize role on the client side too — belt-and-suspenders.
+    // The backend validator handles bad casing, but this prevents
+    // any accidental capitalization from slipping through.
+    const normalizedRole = (role || 'member').toLowerCase();
+    if (!['admin', 'member'].includes(normalizedRole)) {
+      console.warn(`[authService.signup] Unknown role "${role}", falling back to "member"`);
+    }
+
     const payload = {
       email,
-      full_name: fullName,
+      full_name: fullName,       // snake_case — matches FastAPI / Pydantic UserCreate
       password,
-      role
+      role: ['admin', 'member'].includes(normalizedRole) ? normalizedRole : 'member',
     };
-    console.log('🔐 Signup API payload:', payload);
+
+    console.log('[authService.signup] payload →', payload);
     return axiosInstance.post('/auth/signup', payload);
   },
-  
+
   login: (email, password) =>
     axiosInstance.post('/auth/login', { email, password }),
-  
+
   getCurrentUser: () =>
     axiosInstance.get('/auth/me'),
-  
+
   refreshToken: (refreshToken) =>
     axiosInstance.post('/auth/refresh', { refresh_token: refreshToken }),
 };
@@ -27,7 +36,7 @@ export const authService = {
 export const userService = {
   getAllUsers: () =>
     axiosInstance.get('/users/'),
-  
+
   getUserById: (userId) =>
     axiosInstance.get(`/users/${userId}`),
 };
@@ -36,28 +45,28 @@ export const userService = {
 export const projectService = {
   createProject: (name, description) =>
     axiosInstance.post('/projects/', { name, description }),
-  
+
   getMyProjects: (skip = 0, limit = 100) =>
     axiosInstance.get('/projects/', { params: { skip, limit } }),
-  
+
   getProjectById: (projectId) =>
     axiosInstance.get(`/projects/${projectId}`),
-  
+
   updateProject: (projectId, name, description) =>
     axiosInstance.put(`/projects/${projectId}`, { name, description }),
-  
+
   deleteProject: (projectId) =>
     axiosInstance.delete(`/projects/${projectId}`),
-  
+
   addProjectMember: (projectId, userId, role = 'member') =>
     axiosInstance.post(`/projects/${projectId}/members`, {
       user_id: userId,
-      role
+      role,
     }),
-  
+
   removeProjectMember: (projectId, memberId) =>
     axiosInstance.delete(`/projects/${projectId}/members/${memberId}`),
-  
+
   getProjectProgress: (projectId) =>
     axiosInstance.get(`/projects/${projectId}/progress`),
 };
@@ -65,7 +74,6 @@ export const projectService = {
 // Task services
 export const taskService = {
   createTask: (projectId, title, description, priority, dueDate, assignedTo) => {
-    // Normalize payload when the function is called (do NOT invoke at module import)
     const pid = Number(projectId);
     const payloadDueDate = dueDate ? new Date(dueDate).toISOString() : null;
     return axiosInstance.post('/tasks/', {
@@ -74,48 +82,42 @@ export const taskService = {
       description,
       priority,
       due_date: payloadDueDate,
-      assigned_to_id: assignedTo ? Number(assignedTo) : null
+      assigned_to_id: assignedTo ? Number(assignedTo) : null,
     });
   },
-  
+
   getTaskById: (taskId) =>
     axiosInstance.get(`/tasks/${taskId}`),
-  
+
   getProjectTasks: (projectId, skip = 0, limit = 100, status = null, priority = null) =>
     axiosInstance.get(`/tasks/project/${projectId}`, {
-      params: { skip, limit, status, priority }
+      params: { skip, limit, status, priority },
     }),
-  
+
   updateTask: (taskId, updates) => {
-    // Normalize due_date if present (accepts date-only strings from inputs)
     const body = { ...updates };
     if (Object.prototype.hasOwnProperty.call(body, 'due_date')) {
-      if (body.due_date) {
-        body.due_date = new Date(body.due_date).toISOString();
-      } else {
-        // allow explicit null to clear due_date
-        body.due_date = null;
-      }
+      body.due_date = body.due_date ? new Date(body.due_date).toISOString() : null;
     }
-    // normalize assigned_to -> assigned_to_id for API
+    // normalize assigned_to → assigned_to_id for API
     if (Object.prototype.hasOwnProperty.call(body, 'assigned_to')) {
       body.assigned_to_id = body.assigned_to ? Number(body.assigned_to) : null;
       delete body.assigned_to;
     }
     return axiosInstance.put(`/tasks/${taskId}`, body);
   },
-  
+
   deleteTask: (taskId) =>
     axiosInstance.delete(`/tasks/${taskId}`),
-  
+
   getMyTasks: (skip = 0, limit = 100) =>
     axiosInstance.get('/tasks/', { params: { skip, limit } }),
-  
+
   searchTasks: (projectId, query, skip = 0, limit = 100) =>
     axiosInstance.get(`/tasks/search/${projectId}`, {
-      params: { q: query, skip, limit }
+      params: { q: query, skip, limit },
     }),
-  
+
   getOverdueTasks: () =>
     axiosInstance.get('/tasks/overdue'),
 };
