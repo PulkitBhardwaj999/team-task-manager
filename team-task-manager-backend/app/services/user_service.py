@@ -47,23 +47,19 @@ class UserService:
         # @field_validator("role", mode="before") in schemas.py.
         # We just need to bridge schemas.UserRole → models.UserRole via value.
         #
-        incoming_role_str = (
-            user_create.role.value          # schemas.UserRole → "admin" / "member"
-            if user_create.role is not None
-            else "member"
-        )
+        incoming_role = (user_create.role or "member").strip().lower()
 
         try:
-            role: UserRole = UserRole(incoming_role_str)   # models.UserRole instance
+            role = UserRole(incoming_role)
         except ValueError:
             # Unknown value — safe fallback; log and continue
-            print(f"[UserService] WARNING: unknown role '{incoming_role_str}', "
+            print(f"[UserService] WARNING: unknown role '{incoming_role}', "
                   f"defaulting to MEMBER")
             role = UserRole.MEMBER
 
         # ── 3. debug logging (remove / guard with settings.DEBUG in prod) ──────
         print(f"[UserService.create_user] email={user_create.email!r}")
-        print(f"[UserService.create_user] incoming role string : {incoming_role_str!r}")
+        print(f"[UserService.create_user] incoming role string : {incoming_role!r}")
         print(f"[UserService.create_user] resolved model enum  : {role!r}  "
               f"(value={role.value!r})")
 

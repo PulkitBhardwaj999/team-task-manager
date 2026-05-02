@@ -48,16 +48,13 @@ class UserCreate(UserBase):
         """Accept any casing; map to lowercase canonical value or fall back."""
         if v is None:
             return UserRole.MEMBER
-        # Already the correct enum — pass through
         if isinstance(v, UserRole):
             return v
-        # String → normalise
         cleaned = str(v).strip().lower()
         if cleaned == "admin":
             return UserRole.ADMIN
         if cleaned == "member":
             return UserRole.MEMBER
-        # Unknown value → safe default (no 422 for callers)
         return UserRole.MEMBER
 
 

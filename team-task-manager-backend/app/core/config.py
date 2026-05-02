@@ -4,6 +4,8 @@ Application configuration and settings
 import os
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+from typing import List
+import json
 
 class Settings(BaseSettings):
     """Application settings"""
@@ -29,15 +31,20 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS
-    ALLOWED_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "https://team-task-manager-eta-neon.vercel.app",
-        "https://team-task-manager-iota-weld.vercel.app"
-    ]
-    
+    ALLOWED_ORIGINS: List[str] = []
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_origins(cls, value):
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except:
+                return [value]
+        return []
+
     # Environment
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")

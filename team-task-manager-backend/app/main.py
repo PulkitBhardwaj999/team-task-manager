@@ -99,6 +99,14 @@ async def value_error_handler(request: Request, exc: ValueError):
 
 
 @app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception(
         "Unhandled error for %s %s", request.method, request.url.path,
