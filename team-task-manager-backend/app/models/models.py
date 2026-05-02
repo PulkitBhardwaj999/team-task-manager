@@ -81,14 +81,12 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # ✅ SAFE: NO cascade in many-to-many
     projects = relationship(
         "Project",
         secondary=project_members,
         back_populates="members"
     )
 
-    # ✅ SAFE: one-to-many can have delete-orphan
     created_projects = relationship(
         "Project",
         back_populates="creator",
@@ -125,14 +123,12 @@ class Project(Base):
         foreign_keys=[creator_id]
     )
 
-    # ✅ SAFE: NO cascade here
     members = relationship(
         "User",
         secondary=project_members,
         back_populates="projects"
     )
 
-    # ✅ SAFE: delete project → delete tasks
     tasks = relationship(
         "Task",
         back_populates="project",
@@ -151,6 +147,8 @@ class Task(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+
+    # ✅ KEEP THIS NAME (matches DB)
     assigned_to = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     priority = Column(
