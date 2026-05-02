@@ -128,18 +128,7 @@ export function LoginPage() {
           </button>
         </div>
 
-        {/* Demo Info */}
-        <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">
-            💡 Demo Credentials:
-          </p>
-          <p className="text-xs text-blue-700 dark:text-blue-400">
-            Email: <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">admin@example.com</code>
-          </p>
-          <p className="text-xs text-blue-700 dark:text-blue-400">
-            Password: <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">password123</code>
-          </p>
-        </div>
+       
       </div>
     </div>
   );
