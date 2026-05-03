@@ -1,5 +1,5 @@
 """
-SQLAlchemy models for database tables (SAFE VERSION)
+SQLAlchemy models for database tables
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table
@@ -11,6 +11,8 @@ import enum
 
 # ─────────────────────────────────────────────
 # ENUMS
+# All values are lowercase to match the PostgreSQL enum values
+# created by migration 20260502_0001_fix_enum_case
 # ─────────────────────────────────────────────
 
 class UserRole(str, enum.Enum):
@@ -30,6 +32,14 @@ class TaskStatus(str, enum.Enum):
     DONE = "done"
 
 
+# Helper: extracts the .value from each enum member so that
+# SQLAlchemy/asyncpg writes the lowercase string ('admin', 'medium', etc.)
+# instead of the enum .name ('ADMIN', 'MEDIUM') which would fail against
+# the lowercase PostgreSQL enums created by the fix_enum_case migration.
+def _enum_values(enum_class):
+    return [e.value for e in enum_class]
+
+
 # ─────────────────────────────────────────────
 # ASSOCIATION TABLE
 # ─────────────────────────────────────────────
@@ -42,13 +52,12 @@ project_members = Table(
     Column(
         "role",
         ENUM(
-            UserRole,
-            values_callable=lambda x: [e.value for e in x],
+            *_enum_values(UserRole),    # 'admin', 'member'
             name="userrole",
             create_type=False,
         ),
         nullable=False,
-        default=UserRole.MEMBER,
+        default=UserRole.MEMBER.value,
     ),
     Column("created_at", DateTime, default=datetime.utcnow),
 )
@@ -69,13 +78,12 @@ class User(Base):
 
     role = Column(
         ENUM(
-            UserRole,
-            values_callable=lambda x: [e.value for e in x],
+            *_enum_values(UserRole),    # 'admin', 'member'
             name="userrole",
             create_type=False,
         ),
         nullable=False,
-        default=UserRole.MEMBER,
+        default=UserRole.MEMBER.value,
     )
 
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -84,20 +92,20 @@ class User(Base):
     projects = relationship(
         "Project",
         secondary=project_members,
-        back_populates="members"
+        back_populates="members",
     )
 
     created_projects = relationship(
         "Project",
         back_populates="creator",
         foreign_keys="Project.creator_id",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
     assigned_tasks = relationship(
         "Task",
         back_populates="assigned_user",
-        foreign_keys="Task.assigned_to"
+        foreign_keys="Task.assigned_to",
     )
 
 
@@ -120,19 +128,19 @@ class Project(Base):
     creator = relationship(
         "User",
         back_populates="created_projects",
-        foreign_keys=[creator_id]
+        foreign_keys=[creator_id],
     )
 
     members = relationship(
         "User",
         secondary=project_members,
-        back_populates="projects"
+        back_populates="projects",
     )
 
     tasks = relationship(
         "Task",
         back_populates="project",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
 
@@ -147,20 +155,26 @@ class Task(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-
-    # ✅ KEEP THIS NAME (matches DB)
     assigned_to = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     priority = Column(
-        ENUM(TaskPriority, name="taskpriority", create_type=False),
+        ENUM(
+            *_enum_values(TaskPriority),    # 'low', 'medium', 'high'
+            name="taskpriority",
+            create_type=False,
+        ),
         nullable=False,
-        default=TaskPriority.MEDIUM,
+        default=TaskPriority.MEDIUM.value,
     )
 
     status = Column(
-        ENUM(TaskStatus, name="taskstatus", create_type=False),
+        ENUM(
+            *_enum_values(TaskStatus),      # 'todo', 'in_progress', 'done'
+            name="taskstatus",
+            create_type=False,
+        ),
         nullable=False,
-        default=TaskStatus.TODO,
+        default=TaskStatus.TODO.value,
     )
 
     due_date = Column(DateTime, nullable=True)
@@ -174,15 +188,16 @@ class Task(Base):
     assigned_user = relationship(
         "User",
         back_populates="assigned_tasks",
-        foreign_keys=[assigned_to]
+        foreign_keys=[assigned_to],
     )
 
     @property
-    def assigned_user_name(self):
-        from sqlalchemy import inspect
+    def assigned_user_name(self) -> str | None:
+        """Return the assignee's full name without triggering lazy IO."""
+        from sqlalchemy import inspect as sa_inspect
         try:
-            insp = inspect(self)
-            if "assigned_user" in getattr(insp, "unloaded", set()):
+            state = sa_inspect(self)
+            if "assigned_user" in getattr(state, "unloaded", set()):
                 return None
         except Exception:
             pass
